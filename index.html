@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Morro Sound - Radios Mendoza</title>
+<!-- Soporte HLS para reproducciones .m3u8 en Web/WebView -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
 :root {
     --bg-gradient: linear-gradient(135deg, #090d16 0%, #0d1527 50%, #111a2e 100%);
@@ -401,6 +403,7 @@ audio {
 
 <script>
 let currentCard = null;
+let hls = null;
 
 function reproducir(url, nombre, icono, element) {
     // Resaltar tarjeta seleccionada
@@ -416,14 +419,33 @@ function reproducir(url, nombre, icono, element) {
     // Activar animación del ecualizador
     document.getElementById("equalizer").classList.remove('paused');
 
-    // Reproducción nativa en Android Studio / WebView
+    // Reproducción nativa en Android Studio / WebView si está definido el puente
     if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
         window.AndroidInterface.reproducirRadio(nombre, url);
     } else {
-        // Reproducción estándar para navegador Web
+        // Reproducción estándar para navegador Web / WebView
         const player = document.getElementById("audioPlayer");
-        player.src = url;
-        player.play().catch(err => console.log("Error de audio:", err));
+
+        // Destruir instancia previa de HLS si existía
+        if (hls) {
+            hls.destroy();
+            hls = null;
+        }
+
+        // Si es una transmisión HLS (.m3u8) y el entorno soporta HLS.js
+        if (url.includes('.m3u8') && typeof Hls !== 'undefined' && Hls.isSupported()) {
+            hls = new Hls();
+            hls.loadSource(url);
+            hls.attachMedia(player);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                player.play().catch(err => console.log("Error de audio HLS:", err));
+            });
+        } 
+        // Soporte nativo HLS (iOS Safari) o streams de audio estándar (.mp3, .aac)
+        else {
+            player.src = url;
+            player.play().catch(err => console.log("Error de audio:", err));
+        }
     }
 }
 </script>
