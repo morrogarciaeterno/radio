@@ -239,6 +239,30 @@ audio {
 <div class="container">
     <div class="radio-grid">
 
+        <div class="radio-card" onclick="reproducir('https://popradio.stweb.tv/popradio/live/playlist.m3u8', 'Pop Radio', '🍿', this)">
+            <div class="icon">🍿</div>
+            <div class="station-name">POP RADIO</div>
+            <div class="station-dial">FM 101.5</div>
+        </div>
+
+        <div class="radio-card" onclick="reproducir('https://27423.live.streamtheworld.com/LAPOPU_SC', 'La Popu', '💃', this)">
+            <div class="icon">💃</div>
+            <div class="station-name">LA POPU</div>
+            <div class="station-dial">Córdoba</div>
+        </div>
+
+        <div class="radio-card" onclick="reproducir('https://24373.live.streamtheworld.com/BLUE_FM_100_7_SC', 'Blue', '💙', this)">
+            <div class="icon">💙</div>
+            <div class="station-name">BLUE</div>
+            <div class="station-dial">FM 100.7</div>
+        </div>
+
+        <div class="radio-card" onclick="reproducir('https://26443.live.streamtheworld.com/ROCKANDPOP_SC', 'Rock & Pop', '🎸', this)">
+            <div class="icon">🎸</div>
+            <div class="station-name">ROCK & POP</div>
+            <div class="station-dial">FM 95.9</div>
+        </div>
+
         <div class="radio-card" onclick="reproducir('https://st1-mpanel-icy.masterhost.com.ar:8100/radio.mp3', 'Radio Sol', '☀️', this)">
             <div class="icon">☀️</div>
             <div class="station-name">SOL</div>
@@ -279,6 +303,12 @@ audio {
             <div class="icon">🏰</div>
             <div class="station-name">DISNEY</div>
             <div class="station-dial">FM</div>
+        </div>
+
+        <div class="radio-card" onclick="reproducir('https://edge03.radiohdvivo.com/los40', 'Los 40 Directo', '🎤', this)">
+            <div class="icon">🎤</div>
+            <div class="station-name">LOS 40</div>
+            <div class="station-dial">Directo</div>
         </div>
 
         <div class="radio-card" onclick="reproducir('https://frontend.radiohdvivo.com/los40/live', 'Los 40', '🎤', this)">
@@ -338,7 +368,7 @@ function reproducir(url, nombre, icono, element) {
     // Activar animación del ecualizador
     document.getElementById("equalizer").classList.remove('paused');
 
-    // Reproducción nativa en Android Studio
+    // Reproducción nativa en Android Studio / WebView
     if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
         window.AndroidInterface.reproducirRadio(nombre, url);
     } else {
