@@ -178,24 +178,29 @@ header {
     text-overflow: ellipsis;
 }
 
-/* Botón Pausa / Play en el player */
-.play-btn {
+/* Controles de reproducción en la barra */
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ctrl-btn {
     background: rgba(56, 189, 248, 0.15);
     border: 1px solid var(--accent);
     color: var(--text-main);
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     transition: transform 0.2s, background 0.2s;
-    margin-left: 10px;
 }
 
-.play-btn:active {
+.ctrl-btn:active {
     transform: scale(0.9);
 }
 
@@ -205,6 +210,7 @@ header {
     align-items: flex-end;
     gap: 3px;
     height: 18px;
+    margin-right: 4px;
 }
 
 .equalizer .bar {
@@ -261,6 +267,12 @@ audio {
 <div class="container">
     <div class="radio-grid">
 
+        <div class="radio-card" onclick="reproducir('https://unlimited2-ar.dps.live/lacoope/aac/icecast.audio', 'La Coope', '📻', this)">
+            <div class="icon">📻</div>
+            <div class="station-name">LA COOPE</div>
+            <div class="station-dial">FM 102.7</div>
+        </div>
+
         <div class="radio-card" onclick="reproducir('https://streamserver-2.xyz/listen/lvdiez/radio.aac', 'LV Diez', '📻', this)">
             <div class="icon">📻</div>
             <div class="station-name">LV DIEZ</div>
@@ -277,12 +289,6 @@ audio {
             <div class="icon">🔥</div>
             <div class="station-name">NIHUIL</div>
             <div class="station-dial">AM 680</div>
-        </div>
-
-        <div class="radio-card" onclick="reproducir('https://redirector.dps.live/hls-audio/4e252a65837b69e349d5d8c1033152b4/lacoope/playlist/manifest/gotardisz/audio/now/livestream1.m3u8', 'La Coope', '📻', this)">
-            <div class="icon">📻</div>
-            <div class="station-name">LA COOPE</div>
-            <div class="station-dial">FM 102.7</div>
         </div>
 
         <div class="radio-card" onclick="reproducir('https://27393.live.streamtheworld.com/ASPEN.mp3', 'Aspen', '🌲', this)">
@@ -411,14 +417,17 @@ audio {
         </div>
     </div>
 
-    <div style="display: flex; align-items: center;">
+    <div class="player-controls">
         <div class="equalizer paused" id="equalizer">
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
         </div>
-        <button class="play-btn" id="playBtn" onclick="togglePlayPause()">⏸️</button>
+        <!-- Botón de Pausa/Reproducir -->
+        <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Pausar / Reproducir">⏸️</button>
+        <!-- Botón de Detener/Apagar por completo -->
+        <button class="ctrl-btn" onclick="detenerRadio()" title="Detener">⏹️</button>
     </div>
 </div>
 
@@ -434,13 +443,6 @@ let isPlaying = false;
 function reproducir(url, nombre, icono, element) {
     const player = document.getElementById("audioPlayer");
 
-    // Si tocás la misma radio que ya está sonando, alterna Pausa / Play
-    if (currentCard === element) {
-        togglePlayPause();
-        return;
-    }
-
-    // Marca nueva tarjeta activa
     if (currentCard) currentCard.classList.remove('active');
     element.classList.add('active');
     currentCard = element;
@@ -450,7 +452,6 @@ function reproducir(url, nombre, icono, element) {
     document.getElementById("playerIcon").innerText = icono;
     document.getElementById("playerStation").innerText = nombre;
 
-    // Android Studio Bridge
     if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
         window.AndroidInterface.reproducirRadio(nombre, url);
         setPlayingState(true);
@@ -497,9 +498,37 @@ function togglePlayPause() {
     }
 }
 
+function detenerRadio() {
+    const player = document.getElementById("audioPlayer");
+
+    if (window.AndroidInterface && window.AndroidInterface.pausarRadio) {
+        window.AndroidInterface.pausarRadio();
+    } else {
+        player.pause();
+        player.src = "";
+    }
+
+    if (hls) {
+        hls.destroy();
+        hls = null;
+    }
+
+    if (currentCard) {
+        currentCard.classList.remove('active');
+        currentCard = null;
+    }
+
+    document.getElementById("playerIcon").innerText = "📻";
+    document.getElementById("playerStation").innerText = "Seleccioná una radio";
+    document.getElementById("playerLabel").innerText = "Estado";
+    document.getElementById("equalizer").classList.add('paused');
+    document.getElementById("playPauseBtn").innerText = "⏸️";
+    isPlaying = false;
+}
+
 function setPlayingState(playing) {
     isPlaying = playing;
-    const btn = document.getElementById("playBtn");
+    const btn = document.getElementById("playPauseBtn");
     const label = document.getElementById("playerLabel");
     const equalizer = document.getElementById("equalizer");
 
