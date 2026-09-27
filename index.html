@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Morro Sound - Radios Mendoza</title>
-<!-- Soporte HLS para reproducciones .m3u8 en Web/WebView -->
+<!-- Soporte HLS para reproducciones .m3u8 -->
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
 :root {
@@ -136,7 +136,7 @@ header {
     border: 1px solid rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    padding: 14px 20px;
+    padding: 12px 20px;
     border-radius: 24px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
     display: flex;
@@ -178,6 +178,27 @@ header {
     text-overflow: ellipsis;
 }
 
+/* Botón Pausa / Play en el player */
+.play-btn {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid var(--accent);
+    color: var(--text-main);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    margin-left: 10px;
+}
+
+.play-btn:active {
+    transform: scale(0.9);
+}
+
 /* Ecualizador animado */
 .equalizer {
     display: flex;
@@ -207,7 +228,6 @@ header {
     100% { height: 4px; }
 }
 
-/* Ocultar elementos de audio nativos en móviles */
 audio {
     display: none;
 }
@@ -391,11 +411,14 @@ audio {
         </div>
     </div>
 
-    <div class="equalizer paused" id="equalizer">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
+    <div style="display: flex; align-items: center;">
+        <div class="equalizer paused" id="equalizer">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <button class="play-btn" id="playBtn" onclick="togglePlayPause()">⏸️</button>
     </div>
 </div>
 
@@ -403,49 +426,91 @@ audio {
 
 <script>
 let currentCard = null;
+let currentUrl = "";
+let currentNombre = "";
 let hls = null;
+let isPlaying = false;
 
 function reproducir(url, nombre, icono, element) {
-    // Resaltar tarjeta seleccionada
+    const player = document.getElementById("audioPlayer");
+
+    // Si tocás la misma radio que ya está sonando, alterna Pausa / Play
+    if (currentCard === element) {
+        togglePlayPause();
+        return;
+    }
+
+    // Marca nueva tarjeta activa
     if (currentCard) currentCard.classList.remove('active');
     element.classList.add('active');
     currentCard = element;
+    currentUrl = url;
+    currentNombre = nombre;
 
-    // Actualizar barra de estado
     document.getElementById("playerIcon").innerText = icono;
     document.getElementById("playerStation").innerText = nombre;
-    document.getElementById("playerLabel").innerText = "En Vivo";
-    
-    // Activar animación del ecualizador
-    document.getElementById("equalizer").classList.remove('paused');
 
-    // Reproducción nativa en Android Studio / WebView si está definido el puente
+    // Android Studio Bridge
     if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
         window.AndroidInterface.reproducirRadio(nombre, url);
+        setPlayingState(true);
     } else {
-        // Reproducción estándar para navegador Web / WebView
-        const player = document.getElementById("audioPlayer");
-
-        // Destruir instancia previa de HLS si existía
         if (hls) {
             hls.destroy();
             hls = null;
         }
 
-        // Si es una transmisión HLS (.m3u8) y el entorno soporta HLS.js
         if (url.includes('.m3u8') && typeof Hls !== 'undefined' && Hls.isSupported()) {
             hls = new Hls();
             hls.loadSource(url);
             hls.attachMedia(player);
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                player.play().catch(err => console.log("Error de audio HLS:", err));
+                player.play();
+                setPlayingState(true);
             });
-        } 
-        // Soporte nativo HLS (iOS Safari) o streams de audio estándar (.mp3, .aac)
-        else {
+        } else {
             player.src = url;
-            player.play().catch(err => console.log("Error de audio:", err));
+            player.play().then(() => setPlayingState(true)).catch(err => console.log("Error de audio:", err));
         }
+    }
+}
+
+function togglePlayPause() {
+    if (!currentCard) return;
+
+    const player = document.getElementById("audioPlayer");
+
+    if (isPlaying) {
+        if (window.AndroidInterface && window.AndroidInterface.pausarRadio) {
+            window.AndroidInterface.pausarRadio();
+        } else {
+            player.pause();
+        }
+        setPlayingState(false);
+    } else {
+        if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
+            window.AndroidInterface.reproducirRadio(currentNombre, currentUrl);
+        } else {
+            player.play();
+        }
+        setPlayingState(true);
+    }
+}
+
+function setPlayingState(playing) {
+    isPlaying = playing;
+    const btn = document.getElementById("playBtn");
+    const label = document.getElementById("playerLabel");
+    const equalizer = document.getElementById("equalizer");
+
+    if (playing) {
+        btn.innerText = "⏸️";
+        label.innerText = "En Vivo";
+        equalizer.classList.remove('paused');
+    } else {
+        btn.innerText = "▶️";
+        label.innerText = "Pausado";
+        equalizer.classList.add('paused');
     }
 }
 </script>
