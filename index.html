@@ -6,6 +6,8 @@
 <title>Morro Sound - Radios Mendoza</title>
 <!-- Soporte HLS para reproducciones .m3u8 -->
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<!-- SDK oficial de Google Cast para la Web -->
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 <style>
 :root {
     --bg-gradient: linear-gradient(135deg, #090d16 0%, #0d1527 50%, #111a2e 100%);
@@ -204,6 +206,22 @@ header {
     transform: scale(0.9);
 }
 
+/* Botón de Google Cast integrado en web */
+.cast-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+}
+
+google-cast-launcher {
+    width: 28px;
+    height: 28px;
+    --disconnected-color: #9ca3af;
+    --connected-color: #38bdf8;
+    cursor: pointer;
+}
+
 /* Ecualizador animado */
 .equalizer {
     display: flex;
@@ -321,6 +339,13 @@ audio {
             <div class="station-dial">FM 100.9</div>
         </div>
 
+        <!-- Nueva Radio Andes Latina -->
+        <div class="radio-card" onclick="reproducir('https://streamserver-2.xyz:8010/radio.aac', 'Andes Latina', '🏔️', this)">
+            <div class="icon">🏔️</div>
+            <div class="station-name">ANDES LATINA</div>
+            <div class="station-dial">Mendoza</div>
+        </div>
+
         <div class="radio-card" onclick="reproducir('https://popradio.stweb.tv/popradio/live/playlist.m3u8', 'Pop Radio', '🍿', this)">
             <div class="icon">🍿</div>
             <div class="station-name">POP RADIO</div>
@@ -359,8 +384,14 @@ audio {
 
         <div class="radio-card" onclick="reproducir('https://26483.live.streamtheworld.com/LA_RED_MDZ_FM941.mp3', 'La Red Mendoza', '🎙️', this)">
             <div class="icon">🎙️</div>
-            <div class="station-name">LA RED</div>
-            <div class="station-dial">Mendoza</div>
+            <div class="station-name">LA RED MDZ</div>
+            <div class="station-dial">FM 94.1</div>
+        </div>
+
+        <div class="radio-card" onclick="reproducir('https://24383.live.streamtheworld.com/LA_RED_AM910AAC.aac?dist=onlineradiobox', 'La Red 910', '⚽', this)">
+            <div class="icon">⚽</div>
+            <div class="station-name">LA RED 910</div>
+            <div class="station-dial">AM 910</div>
         </div>
 
         <div class="radio-card" onclick="reproducir('https://radios.solumedia.com:6560/stream', 'Vorterix', '🎵', this)">
@@ -428,6 +459,10 @@ audio {
         <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Pausar / Reproducir">⏸️</button>
         <!-- Botón de Detener/Apagar -->
         <button class="ctrl-btn" onclick="detenerRadio()" title="Detener">⏹️</button>
+        <!-- Botón de Google Cast Web -->
+        <div class="cast-container">
+            <google-cast-launcher></google-cast-launcher>
+        </div>
     </div>
 </div>
 
@@ -439,6 +474,59 @@ let currentUrl = "";
 let currentNombre = "";
 let hls = null;
 let isPlaying = false;
+let castSession = null;
+
+// Inicializar Google Cast en la Web
+window['__onGCastApiAvailable'] = function(isAvailable) {
+    if (isAvailable) {
+        initializeCastContext();
+    }
+};
+
+function initializeCastContext() {
+    const castContext = cast.framework.CastContext.getInstance();
+    castContext.setOptions({
+        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+        autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED
+    });
+
+    castContext.addEventListener(
+        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+        function(event) {
+            switch (event.sessionState) {
+                case cast.framework.SessionState.SESSION_STARTED:
+                case cast.framework.SessionState.SESSION_RESUMED:
+                    castSession = castContext.getCurrentSession();
+                    if (currentUrl) {
+                        enviarACast(currentUrl, currentNombre);
+                    }
+                    break;
+                case cast.framework.SessionState.SESSION_ENDED:
+                    castSession = null;
+                    break;
+            }
+        }
+    );
+}
+
+function enviarACast(url, nombre) {
+    if (!castSession) return;
+
+    // Detenemos el audio local si se transmite al Chromecast
+    const player = document.getElementById("audioPlayer");
+    player.pause();
+
+    const mediaInfo = new chrome.cast.media.MediaInfo(url, 'audio/mp3');
+    mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+    mediaInfo.metadata.title = nombre;
+    mediaInfo.metadata.artist = "Morro Sound";
+
+    const request = new chrome.cast.media.LoadRequest(mediaInfo);
+    castSession.loadMedia(request).then(
+        function() { console.log('Transmitiendo a Chromecast con éxito'); },
+        function(errorCode) { console.log('Error al transmitir: ' + errorCode); }
+    );
+}
 
 function reproducir(url, nombre, icono, element) {
     const player = document.getElementById("audioPlayer");
@@ -451,6 +539,13 @@ function reproducir(url, nombre, icono, element) {
 
     document.getElementById("playerIcon").innerText = icono;
     document.getElementById("playerStation").innerText = nombre;
+
+    // Si hay una sesión de Chromecast activa, enviamos directo a la tele
+    if (castSession) {
+        enviarACast(url, nombre);
+        setPlayingState(true);
+        return;
+    }
 
     if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
         window.AndroidInterface.reproducirRadio(nombre, url);
@@ -482,14 +577,18 @@ function togglePlayPause() {
     const player = document.getElementById("audioPlayer");
 
     if (isPlaying) {
-        if (window.AndroidInterface && window.AndroidInterface.pausarRadio) {
+        if (castSession) {
+            castSession.endCurrentSession(true);
+        } else if (window.AndroidInterface && window.AndroidInterface.pausarRadio) {
             window.AndroidInterface.pausarRadio();
         } else {
             player.pause();
         }
         setPlayingState(false);
     } else {
-        if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
+        if (castSession && currentUrl) {
+            enviarACast(currentUrl, currentNombre);
+        } else if (window.AndroidInterface && window.AndroidInterface.reproducirRadio) {
             window.AndroidInterface.reproducirRadio(currentNombre, currentUrl);
         } else {
             player.play();
@@ -500,6 +599,10 @@ function togglePlayPause() {
 
 function detenerRadio() {
     const player = document.getElementById("audioPlayer");
+
+    if (castSession) {
+        castSession.endCurrentSession(true);
+    }
 
     if (window.AndroidInterface && window.AndroidInterface.pausarRadio) {
         window.AndroidInterface.pausarRadio();
