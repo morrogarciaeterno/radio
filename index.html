@@ -345,6 +345,12 @@ audio {
             <div class="station-dial">Mendoza</div>
         </div>
 
+        <div class="radio-card" onclick="reproducir('#', 'Radium', '⚡', this)">
+            <div class="icon">⚡</div>
+            <div class="station-name">RADIUM</div>
+            <div class="station-dial">Online</div>
+        </div>
+
         <div class="radio-card" onclick="reproducir('https://popradio.stweb.tv/popradio/live/playlist.m3u8', 'Pop Radio', '🍿', this)">
             <div class="icon">🍿</div>
             <div class="station-name">POP RADIO</div>
@@ -403,12 +409,6 @@ audio {
             <div class="icon">🎤</div>
             <div class="station-name">LOS 40</div>
             <div class="station-dial">Hits</div>
-        </div>
-
-        <div class="radio-card" onclick="reproducir('https://metro.stweb.tv/metro/live/playlist.m3u8', 'Metro 95.1', '🎧', this)">
-            <div class="icon">🎧</div>
-            <div class="station-name">METRO</div>
-            <div class="station-dial">95.1</div>
         </div>
 
         <div class="radio-card" onclick="reproducir('https://masservidor.net:7176/stream', 'Metropolitana', '🎸', this)">
@@ -510,6 +510,11 @@ function enviarACast(url, nombre) {
 }
 
 function reproducir(url, nombre, icono, element) {
+    if (url === '#') {
+        alert("Falta configurar el enlace de streaming para Radium.");
+        return;
+    }
+
     const player = document.getElementById("audioPlayer");
 
     if (currentCard) currentCard.classList.remove('active');
